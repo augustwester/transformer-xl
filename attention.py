@@ -7,6 +7,7 @@ class MultiHeadAttention(nn.Module):
         
         self.mem_len = mem_len
         self.embed_dim = embed_dim
+        self.device = device
         
         self.u1 = nn.Parameter(torch.randn(num_heads, 1, embed_dim))
         self.u2 = nn.Parameter(torch.randn(num_heads, 1, embed_dim))
@@ -81,7 +82,7 @@ class MultiHeadAttention(nn.Module):
         See Appendix B of the Transformer-XL paper for more details.
         """
         batch_size, num_heads, height, width = x.shape
-        i = torch.arange(width).roll(shift).unsqueeze(0)
+        i = torch.arange(width).roll(shift).unsqueeze(0).to(device)
         i = i.flip(1).repeat(1, 2)
         i = i.unfold(dimension=1, size=width, step=1).flip(-1).unsqueeze(0)
         i = i.repeat(batch_size, num_heads, 1, 1)[:, :, :height]
