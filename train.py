@@ -33,7 +33,7 @@ config = TransformerXL.get_default_config()
 config.vocab_size = tokenizer.vocab_size
 model = TransformerXL(config, device)
 train_loader = DataLoader(train, batch_size=batch_size)
-opt = Adam(model.parameters(), lr=5e-4)
+opt = Adam(model.parameters(), lr=1e-4)
 cross_entropy = CrossEntropyLoss(label_smoothing=0.1)
 
 def generate_sentence(model, num_gen_words=10):
@@ -53,8 +53,8 @@ def generate_sentence(model, num_gen_words=10):
 progress = tqdm(train_loader)
 for _ in range(num_epochs):
     for batch_num, batch in enumerate(progress):
-        x = batch["input_ids"]
-        att_mask = batch["attention_mask"]
+        x = batch["input_ids"].to(device)
+        att_mask = batch["attention_mask"].to(device)
         num_segments = ceil(x.shape[-1] / config.seg_len)
         for i in range(num_segments):
             seg = x[:, i*config.seg_len:(i+1)*config.seg_len]
