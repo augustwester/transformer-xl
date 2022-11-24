@@ -41,7 +41,8 @@ def generate_sentence(model, num_gen_words=10):
     input = output
     for _ in range(num_gen_words):
         tokenized_input = tokenizer(input, return_tensors="pt")
-        out = model(tokenized_input["input_ids"], tokenized_input["attention_mask"])
+        out = model(tokenized_input["input_ids"].to(device),
+                    tokenized_input["attention_mask"].to(device))
         next_token_dist = torch.softmax(out, dim=-1)[0, -2]
         next_token_id = Categorical(next_token_dist).sample()
         next_token = tokenizer.decode(next_token_id)
