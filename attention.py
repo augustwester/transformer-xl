@@ -1,35 +1,26 @@
 import torch
 from torch import nn
-from torch.nn import Parameter, LayerNorm
-
-class Attention(nn.Module):
-    def __init__(self, embed_dim, seg_len, mem_len, num_heads):
+        
+class MultiHeadAttention(nn.Module):
+    def __init__(self, model_dim, embed_dim, seg_len, mem_len, num_heads):
         super().__init__()
         
-        # should these have identical rows???
-        self.u = Parameter(torch.randn(num_heads, seg_len, embed_dim))
-        self.v = Parameter(torch.randn(num_heads, seg_len, embed_dim))
-        
-        self.w_q = nn.Linear(embed_dim, num_heads*embed_dim)
-        self.w_ke = nn.Linear(embed_dim, num_heads*embed_dim)
-        self.w_kr = nn.Linear(embed_dim, num_heads*embed_dim)
-        self.w_v = nn.Linear(embed_dim, num_heads*embed_dim)
-        self.mlp = nn.Linear(num_heads*embed_dim, embed_dim)
-        self.layer_norm = LayerNorm(embed_dim)
-        
-        self.pos_ff = nn.Sequential(
-            nn.Linear(embed_dim, 4*embed_dim),
-            nn.ReLU(),
-            nn.Linear(4*embed_dim, embed_dim)
-        )
-        
         self.mem_len = mem_len
-        self.mem = torch.empty(0, 0, embed_dim, requires_grad=False)
+        self.embed_dim = embed_dim
+        
+        self.u1 = nn.Parameter(torch.randn(num_heads, 1, embed_dim))
+        self.u2 = nn.Parameter(torch.randn(num_heads, 1, embed_dim))
+        
+        self.w_q = nn.Linear(model_dim, num_heads*embed_dim, bias=False)
+        self.w_kv = nn.Linear(model_dim, 2*num_heads*embed_dim, bias=False)
+        self.w_r = nn.Linear(model_dim, num_heads*embed_dim, bias=False)
+        self.mlp = nn.Linear(num_heads*embed_dim, model_dim, bias=False)
+        self.layer_norm = nn.LayerNorm(model_dim)
         
         pos = self.get_sinusoid_pos_encoding(seg_len+mem_len, embed_dim)
         self.pos = torch.flip(pos, dims=(0,))
     
-    def forward(self, x, mem):
+    def forward(self, x, mem, att_mask):
         # concat output from previous layer with "memory" from earlier segments
         h = torch.cat((mem, x), dim=1)
         
@@ -37,30 +28,43 @@ class Attention(nn.Module):
         mem_len = h.shape[1] - seg_len
         total_len = h.shape[1]
         
-        # compute projections of output from previous layer and the memory
-        q = self.w_q(x).reshape(batch_size, -1, seg_len, embed_dim)
-        k = self.w_ke(h).reshape(batch_size, -1, total_len, embed_dim)
-        v = self.w_v(h).reshape(batch_size, -1, total_len, embed_dim)
-        r = self.w_kr(self.pos).reshape(-1, total_len, embed_dim)
+        # compute projections of input and memory embeddings
+        q = self.w_q(x).view(batch_size, -1, seg_len, embed_dim)
+        kv = self.w_kv(h).view(2*batch_size, -1, total_len, embed_dim)
+        k, v = kv.chunk(2, dim=0)
+        k = k.transpose(2, 3) # only using transposed k below
+        
+        # relative distance between two tokens is max total_len
+        pos = self.pos[-total_len:]
+        r = self.w_r(pos).view(-1, total_len, embed_dim)
         
         # compute relative positional encodings
         b = q @ r.transpose(1, 2)
         b = self.circulant_shift(b, -seg_len+1)
         
+        # u1 and u2 should be identical for all query vectors
+        u1 = self.u1.repeat(1, seg_len, 1)
+        u2 = self.u2.repeat(1, seg_len, 1)
+        
         # this is the XL specific way of computing the attention score
-        k = k.transpose(2, 3)
-        att = q @ k + b + self.u @ k + self.v @ r.transpose(1, 2)
-        att = att.tril(mem_len) / embed_dim**0.5
-        att = torch.softmax(att, dim=-1)
+        #att_mask = att_mask.unsqueeze(1).unsqueeze(-1).repeat(1,10,1,total_len)
+        att_score = q @ k + b + u1 @ k + u2 @ r.transpose(1, 2)
+        #att_score = att_score * att_mask
+        att_score = att_score.tril(mem_len) / embed_dim**0.5
+        att_score[att_score == 0] = float("-inf")
+        att_score = torch.softmax(att_score, dim=-1)
         
-        # compute the output of the layer and save to memory
-        out = self.layer_norm(self.mlp(att @ v) + x)
-        out = self.pos_ff(out)
-        self.save_to_memory(out)
-        
-        return out
+        # compute output and save to memory
+        att = (att_score @ v).view(batch_size, seg_len, -1)
+        return self.layer_norm(self.mlp(att) + x)
           
     def get_sinusoid_pos_encoding(self, mem_len, embed_dim):
+        """
+        Standard sinusoid positional encoding method outlined in the original
+        Transformer paper. In this case, we use the encodings not to represent
+        each token's position in a sequence but to represent the distance
+        between two tokens (i.e. as a *relative* positional encoding).
+        """
         pos = torch.arange(mem_len).unsqueeze(1)
         enc = torch.arange(embed_dim).float()
         enc = enc.unsqueeze(0).repeat(mem_len, 1)
@@ -82,14 +86,3 @@ class Attention(nn.Module):
         i = i.unfold(dimension=1, size=width, step=1).flip(-1).unsqueeze(0)
         i = i.repeat(batch_size, num_heads, 1, 1)[:, :, :height]
         return x.gather(3, i)
-    
-    def save_to_memory(self, h):
-        self.mem = torch.stack((self.mem, h), dim=1)[:, :self.mem_len]
-
-batch_size = 64
-embed_dim = 512
-seg_len = 100
-x = torch.randn(batch_size, seg_len, embed_dim)
-h = torch.randn(batch_size, 384, embed_dim)
-att = Attention(embed_dim, seg_len, mem_len=384, num_heads=10)
-out = att(x, h)
