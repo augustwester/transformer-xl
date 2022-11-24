@@ -38,6 +38,7 @@ class TransformerXL(nn.Module):
             self.layers.append(dec)
             
         self.out_layer = nn.Linear(config.model_dim, config.vocab_size)
+        self.to(device)
     
     def forward(self, x, att_mask):
         x = self.embed(x)
