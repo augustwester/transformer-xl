@@ -15,9 +15,9 @@ class PositionwiseFeedForward(nn.Module):
         return self.net(x)
 
 class DecoderLayer(nn.Module):
-    def __init__(self, model_dim, embed_dim, seg_len, mem_len, num_heads, inner_dim):
+    def __init__(self, model_dim, embed_dim, seg_len, mem_len, num_heads, inner_dim, device):
         super().__init__()
-        self.attn = MultiHeadAttention(model_dim, embed_dim, seg_len, mem_len, num_heads)
+        self.attn = MultiHeadAttention(model_dim, embed_dim, seg_len, mem_len, num_heads, device)
         self.pos_ff = PositionwiseFeedForward(model_dim, inner_dim)
     
     def forward(self, x, mem, att_mask):

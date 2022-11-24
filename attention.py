@@ -2,7 +2,7 @@ import torch
 from torch import nn
         
 class MultiHeadAttention(nn.Module):
-    def __init__(self, model_dim, embed_dim, seg_len, mem_len, num_heads):
+    def __init__(self, model_dim, embed_dim, seg_len, mem_len, num_heads, device):
         super().__init__()
         
         self.mem_len = mem_len
@@ -17,7 +17,7 @@ class MultiHeadAttention(nn.Module):
         self.mlp = nn.Linear(num_heads*embed_dim, model_dim, bias=False)
         self.layer_norm = nn.LayerNorm(model_dim)
         
-        pos = self.get_sinusoid_pos_encoding(seg_len+mem_len, embed_dim)
+        pos = self.get_sinusoid_pos_encoding(seg_len+mem_len, embed_dim).to(device)
         self.pos = torch.flip(pos, dims=(0,))
     
     def forward(self, x, mem, att_mask):

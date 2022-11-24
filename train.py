@@ -13,6 +13,7 @@ import torch
 
 num_epochs = 5
 batch_size = 32
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # load dataset
 dataset = load_dataset("wikitext", "wikitext-103-raw-v1")
@@ -27,32 +28,25 @@ def tokenization(example):
 train = train.map(tokenization, batched=True, batch_size=batch_size)
 train.set_format(type="pt")
 
-# configure model hyperparameters
-config = Config()
-config.model_dim = 200
-config.embed_dim = 200
-config.seg_len = 100
-config.mem_len = 384
-config.num_heads = 2
-config.dropout = 0
-config.inner_dim = 200
-config.vocab_size = tokenizer.vocab_size
-config.num_layers = 2
-
 # create model, dataset loader, and optimizer
-model = TransformerXL(config)
+config = TransformerXL.get_default_config()
+config.vocab_size = tokenizer.vocab_size
+model = TransformerXL(config, device)
 train_loader = DataLoader(train, batch_size=batch_size)
 opt = Adam(model.parameters(), lr=5e-4)
+cross_entropy = CrossEntropyLoss(label_smoothing=0.1)
 
 def generate_sentence(model, num_gen_words=10):
-    input = "The adventure began when "
+    output = "The adventure began when "
+    input = output
     for _ in range(num_gen_words):
         tokenized_input = tokenizer(input, return_tensors="pt")
         out = model(tokenized_input["input_ids"], tokenized_input["attention_mask"])
-        next_token_dist = torch.softmax(out, dim=-1)[0, -1]
+        next_token_dist = torch.softmax(out, dim=-1)[0, -2]
         next_token_id = Categorical(next_token_dist).sample()
         next_token = tokenizer.decode(next_token_id)
-        input += next_token + " "
+        output += next_token + " "
+        input = next_token
     model.clear_memory()
     return input
 
@@ -65,11 +59,8 @@ for _ in range(num_epochs):
         for i in range(num_segments):
             seg = x[:, i*config.seg_len:(i+1)*config.seg_len]
             seg_att_mask = att_mask[:, i*config.seg_len:(i+1)*config.seg_len]
-            
             preds = model(seg, seg_att_mask)[seg_att_mask.bool()]
             targets = seg[seg_att_mask.roll(1).bool()]
-            
-            cross_entropy = CrossEntropyLoss(label_smoothing=0.1)
             loss = cross_entropy(preds, targets)
             loss.backward()
             opt.step()
