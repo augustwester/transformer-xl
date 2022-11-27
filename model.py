@@ -19,7 +19,7 @@ class TransformerXL(nn.Module):
     
     def __init__(self, config, device):
         super().__init__()
-        self.mem = [None] * config.num_layers
+        self.mem = None
         self.mem_len = config.mem_len
         self.model_dim = config.model_dim
         self.vocab_size = config.vocab_size
@@ -27,13 +27,18 @@ class TransformerXL(nn.Module):
         self.layers = nn.ParameterList()
         self.device = device
         
+        # no need for each layer to create a copy of the positional encodings
+        total_len = self.mem_len+config.seg_len
+        R = self.get_sinusoid_pos_encoding(total_len, self.model_dim)
+        R = torch.flip(R, dims=(0,)).to(device)
+        
         for _ in range(config.num_layers):
             dec = DecoderLayer(config.model_dim,
                                config.embed_dim,
-                               config.seg_len,
                                config.mem_len,
                                config.num_heads,
                                config.inner_dim,
+                               R,
                                device)
             self.layers.append(dec)
             
@@ -42,14 +47,42 @@ class TransformerXL(nn.Module):
     
     def forward(self, x, att_mask):
         x = self.embed(x)
+        
+        # create memory tensors if they haven't been already
+        if self.mem is None:
+            batch_size = x.size(0)
+            self.set_up_memory(batch_size)
+        
+        # compute model output, saving layer inputs to memory along the way
         for i, dec in enumerate(self.layers):
-            if self.mem[i] is None:
-                batch_size = x.shape[0]
-                self.mem[i] = torch.zeros(batch_size, self.mem_len, self.model_dim).to(self.device)
+            x_ = x.clone()
             x = dec(x, self.mem[i], att_mask)
-            # beware that this indexing might cause problems when mem_len==0
-            self.mem[i] = torch.cat((self.mem[i], x.detach()), dim=1)[:, -self.mem_len:]
+            self.add_to_memory(x_, i)
+            
         return self.out_layer(x)
     
-    def clear_memory(self):
+    def get_sinusoid_pos_encoding(self, mem_len, embed_dim):
+        """
+        Standard sinusoid positional encoding method outlined in the original
+        Transformer paper. In this case, we use the encodings not to represent
+        each token's position in a sequence but to represent the distance
+        between two tokens (i.e. as a *relative* positional encoding).
+        """
+        pos = torch.arange(mem_len).unsqueeze(1)
+        enc = torch.arange(embed_dim).float()
+        enc = enc.unsqueeze(0).repeat(mem_len, 1)
+        enc[:, ::2] = torch.sin(pos / 10000**(2*enc[:, ::2]/embed_dim))
+        enc[:, 1::2] = torch.cos(pos / 10000**(2*enc[:, 1::2]/embed_dim))
+        return enc
+    
+    def set_up_memory(self, batch_size):
         self.mem = [None] * len(self.layers)
+        for i in range(len(self.mem)):
+            self.mem[i] = torch.zeros(batch_size, self.mem_len, self.model_dim).to(self.device)
+    
+    def add_to_memory(self, x, i):
+        # beware that this indexing might cause problems when mem_len==0
+        self.mem[i] = torch.cat((self.mem[i], x.detach()), dim=1)[:, -self.mem_len:]
+    
+    def clear_memory(self):
+        self.mem = None
