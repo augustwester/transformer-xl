@@ -49,7 +49,7 @@ def generate_sentence(model, num_gen_words=10):
         output += next_token + " "
         input = next_token
     model.clear_memory()
-    return input
+    return output
 
 progress = tqdm(train_loader)
 for _ in range(num_epochs):
