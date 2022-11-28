@@ -24,7 +24,7 @@ class TransformerXL(nn.Module):
         self.model_dim = config.model_dim
         self.vocab_size = config.vocab_size
         self.embed = nn.Embedding(config.vocab_size, config.model_dim)
-        self.layers = nn.ParameterList()
+        self.layers = nn.ModuleList()
         self.device = device
         
         # no need for each layer to create a copy of the positional encodings
