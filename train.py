@@ -31,7 +31,7 @@ config = TransformerXL.get_default_config()
 config.vocab_size = tokenizer.vocab_size
 model = TransformerXL(config, device)
 train_loader = DataLoader(train, batch_size=batch_size)
-opt = Adam(model.parameters(), lr=1e-4)
+opt = Adam(model.parameters(), lr=2.5e-4)
 cross_entropy = CrossEntropyLoss(label_smoothing=0.1)
 
 def generate_sentence(model, num_gen_words=10):
@@ -65,6 +65,7 @@ for _ in range(num_epochs):
             loss.backward()
             opt.step()
             opt.zero_grad()
+            
         progress.set_description(f"{loss.item()}")
         model.clear_memory()
         
