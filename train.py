@@ -1,18 +1,16 @@
+import torch
 from torch.nn import CrossEntropyLoss
 from model import TransformerXL
-from config import Config
 from datasets.load import load_dataset
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 from math import ceil
 from torch.optim import Adam
-from torch.nn.functional import one_hot
 from tqdm import tqdm
 from torch.distributions import Categorical
-import torch
 
 num_epochs = 5
-batch_size = 32
+batch_size = 128
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # load dataset
@@ -57,6 +55,7 @@ for _ in range(num_epochs):
         x = batch["input_ids"].to(device)
         att_mask = batch["attention_mask"].to(device)
         num_segments = ceil(x.shape[-1] / config.seg_len)
+        
         for i in range(num_segments):
             seg = x[:, i*config.seg_len:(i+1)*config.seg_len]
             seg_att_mask = att_mask[:, i*config.seg_len:(i+1)*config.seg_len]

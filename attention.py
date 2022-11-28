@@ -10,12 +10,14 @@ class MultiHeadAttention(nn.Module):
         self.embed_dim = embed_dim
         self.device = device
         
-        self.u1 = nn.Parameter(torch.Tensor(1, num_heads, 1, embed_dim))
-        self.u2 = nn.Parameter(torch.Tensor(1, num_heads, 1, embed_dim))
+        self.u1 = nn.Parameter(torch.randn(1, num_heads, 1, embed_dim))
+        self.u2 = nn.Parameter(torch.randn(1, num_heads, 1, embed_dim))
         
         self.w_q = nn.Linear(model_dim, num_heads*embed_dim, bias=False)
-        self.w_kv = nn.Linear(model_dim, 2*num_heads*embed_dim, bias=False)
+        self.w_k = nn.Linear(model_dim, num_heads*embed_dim, bias=False)
+        self.w_v = nn.Linear(model_dim, num_heads*embed_dim, bias=False)
         self.w_r = nn.Linear(model_dim, num_heads*embed_dim, bias=False)
+        
         self.mlp = nn.Linear(num_heads*embed_dim, model_dim, bias=False)
         self.layer_norm = nn.LayerNorm(model_dim)
     
@@ -29,17 +31,17 @@ class MultiHeadAttention(nn.Module):
         
         # compute projections of input and memory embeddings
         q = self.w_q(x).view(batch_size, -1, seg_len, embed_dim)
-        kv = self.w_kv(h).view(2*batch_size, -1, total_len, embed_dim)
+        k = self.w_k(h).view(batch_size, -1, total_len, embed_dim)
+        v = self.w_v(h).view(batch_size, -1, total_len, embed_dim)
         r_emb = self.w_r(self.R[-total_len:]).view(1, -1, total_len, embed_dim)
-        k, v = kv.chunk(2, dim=0)
         
         # the "XL specific" way of computing the pre-softmax attention score
-        AC = torch.einsum("bhid,bhjd->bhij", q + self.u1, k)
-        BD = torch.einsum("bhid,bhjd->bhij", q + self.u2, r_emb)
-        BD = self.circulant_shift(BD, -seg_len+1)
+        ac = torch.einsum("bhid,bhjd->bhij", q + self.u1, k)
+        bd = torch.einsum("bhid,bhjd->bhij", q + self.u2, r_emb)
+        bd = self.circulant_shift(bd, -seg_len+1)
         
         # computing the attention scores
-        att_score = AC + BD
+        att_score = ac + bd
         att_score = att_score.tril(mem_len) / embed_dim**0.5
         att_score[att_score == 0] = float("-inf")
         att_score = torch.softmax(att_score, dim=-1)

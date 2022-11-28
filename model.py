@@ -78,7 +78,7 @@ class TransformerXL(nn.Module):
     def set_up_memory(self, batch_size):
         self.mem = [None] * len(self.layers)
         for i in range(len(self.mem)):
-            self.mem[i] = torch.zeros(batch_size, self.mem_len, self.model_dim).to(self.device)
+            self.mem[i] = torch.zeros(batch_size, 0, self.model_dim).to(self.device)
     
     def add_to_memory(self, x, i):
         # beware that this indexing might cause problems when mem_len==0
