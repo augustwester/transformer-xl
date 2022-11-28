@@ -61,16 +61,16 @@ class TransformerXL(nn.Module):
             
         return self.out_layer(x)
     
-    def get_sinusoid_pos_encoding(self, mem_len, embed_dim):
+    def get_sinusoid_pos_encoding(self, total_len, embed_dim):
         """
         Standard sinusoid positional encoding method outlined in the original
         Transformer paper. In this case, we use the encodings not to represent
         each token's position in a sequence but to represent the distance
         between two tokens (i.e. as a *relative* positional encoding).
         """
-        pos = torch.arange(mem_len).unsqueeze(1)
+        pos = torch.arange(total_len).unsqueeze(1)
         enc = torch.arange(embed_dim).float()
-        enc = enc.unsqueeze(0).repeat(mem_len, 1)
+        enc = enc.unsqueeze(0).repeat(total_len, 1)
         enc[:, ::2] = torch.sin(pos / 10000**(2*enc[:, ::2]/embed_dim))
         enc[:, 1::2] = torch.cos(pos / 10000**(2*enc[:, 1::2]/embed_dim))
         return enc
