@@ -7,14 +7,14 @@ class TransformerXL(nn.Module):
     @staticmethod
     def get_default_config():
         config = Config()
-        config.model_dim = 200
-        config.embed_dim = 200
+        config.model_dim = 256
+        config.embed_dim = 64
         config.seg_len = 100
-        config.mem_len = 384
-        config.num_heads = 2
-        config.dropout = 0
-        config.inner_dim = 200
-        config.num_layers = 2
+        config.mem_len = 100
+        config.num_heads = 4
+        config.dropout = 0.1
+        config.inner_dim = 1024
+        config.num_layers = 8
         return config
     
     def __init__(self, config, device):
@@ -25,6 +25,7 @@ class TransformerXL(nn.Module):
         self.vocab_size = config.vocab_size
         self.embed = nn.Embedding(config.vocab_size, config.model_dim)
         self.layers = nn.ModuleList()
+        self.dropout = nn.Dropout(config.dropout)
         self.device = device
         
         # no need for each layer to create a copy of the positional encodings
@@ -38,6 +39,7 @@ class TransformerXL(nn.Module):
                                config.mem_len,
                                config.num_heads,
                                config.inner_dim,
+                               config.dropout,
                                R,
                                device)
             self.layers.append(dec)
@@ -46,7 +48,7 @@ class TransformerXL(nn.Module):
         self.to(device)
     
     def forward(self, x, att_mask):
-        x = self.embed(x)
+        x = self.dropout(self.embed(x))
         
         # create memory tensors if they haven't been already
         if self.mem is None:
