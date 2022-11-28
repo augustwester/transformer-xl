@@ -10,9 +10,10 @@ class PositionwiseFeedForward(nn.Module):
             nn.ReLU(),
             nn.Linear(inner_dim, model_dim)
         )
+        self.layer_norm = nn.LayerNorm(model_dim)
         
     def forward(self, x):
-        return self.net(x)
+        return self.layer_norm(self.net(x) + x)
 
 class DecoderLayer(nn.Module):
     def __init__(self, model_dim, embed_dim, mem_len, num_heads, inner_dim, R, device):
