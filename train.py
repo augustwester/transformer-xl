@@ -49,8 +49,8 @@ def generate_sentence(model, num_gen_words=10):
     model.clear_memory()
     return output
 
-progress = tqdm(train_loader)
 for _ in range(num_epochs):
+    progress = tqdm(train_loader)
     for batch_num, batch in enumerate(progress):
         x = batch["input_ids"].to(device)
         att_mask = batch["attention_mask"].to(device)
