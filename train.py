@@ -58,9 +58,9 @@ for _ in range(num_epochs):
         
         for i in range(num_segments):
             seg = x[:, i*config.seg_len:(i+1)*config.seg_len]
-            seg_att_mask = att_mask[:, i*config.seg_len:(i+1)*config.seg_len]
-            preds = model(seg, seg_att_mask)[seg_att_mask.bool()]
-            targets = seg[seg_att_mask.roll(1).bool()]
+            mask = att_mask[:, i*config.seg_len:(i+1)*config.seg_len]
+            preds = model(seg, mask)[mask.bool()][:-1]
+            targets = seg[mask.roll(1).bool()][1:]
             loss = cross_entropy(preds, targets)
             loss.backward()
             opt.step()

@@ -46,7 +46,7 @@ class MultiHeadAttention(nn.Module):
         att_score = att_score.tril(mem_len) / self.embed_dim**0.5
         att_score[att_score == 0] = float("-inf")
         att_score = torch.softmax(att_score, dim=-1)
-        #att_score = self.dropout(att_score)
+        att_score = torch.einsum("bhid,bi->bhid", att_score, att_mask)
         
         # compute output
         att = (att_score @ v).view(batch_size, seg_len, -1)
