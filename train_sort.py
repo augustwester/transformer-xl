@@ -57,3 +57,5 @@ for _ in range(num_epochs):
             print("Ground truth:", x[0, :seq_len].sort()[0])
             print(f"Accuracy:     {cor} / {len(inp)}",)
             
+torch.save({"state_dict": model.state_dict(),
+            "config": config}, "model.pt")
