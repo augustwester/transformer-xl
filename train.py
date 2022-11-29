@@ -58,11 +58,16 @@ for _ in range(num_epochs):
         
         for i in range(num_segments):
             seg = x[:, i*config.seg_len:(i+1)*config.seg_len]
-            mask = att_mask[:, i*config.seg_len:(i+1)*config.seg_len]
-            preds = model(seg, mask)[mask.bool()][:-1]
-            targets = seg[mask.roll(1).bool()][1:]
+            mask = att_mask[:, i*config.seg_len:(i+1)*config.seg_len].bool()
+            
+            preds = model(seg, mask)[mask][:-1]
+            targets = seg[mask][1:]
+            preds = preds[targets != tokenizer.pad_token_id]
+            targets = targets[targets != tokenizer.pad_token_id]
+            
             loss = cross_entropy(preds, targets)
             loss.backward()
+            
             opt.step()
             opt.zero_grad()
             

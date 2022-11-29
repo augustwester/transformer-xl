@@ -7,14 +7,14 @@ class TransformerXL(nn.Module):
     @staticmethod
     def get_default_config():
         config = Config()
-        config.model_dim = 256
+        config.model_dim = 128
         config.embed_dim = 64
         config.seg_len = 100
         config.mem_len = 100
         config.num_heads = 4
         config.dropout = 0.1
-        config.inner_dim = 1024
-        config.num_layers = 8
+        config.inner_dim = 256
+        config.num_layers = 4
         return config
     
     def __init__(self, config, device):
@@ -47,7 +47,7 @@ class TransformerXL(nn.Module):
         self.out_layer = nn.Linear(config.model_dim, config.vocab_size)
         self.to(device)
     
-    def forward(self, x, att_mask):
+    def forward(self, x, att_mask=None):
         x = self.dropout(self.embed(x))
         
         # create memory tensors if they haven't been already
