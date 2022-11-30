@@ -31,14 +31,20 @@ class MultiHeadAttention(nn.Module):
         total_len = h.shape[1]
         
         # compute projections of input and memory embeddings
-        q = self.w_q(x).view(batch_size, -1, seg_len, self.embed_dim)
-        k = self.w_k(h).view(batch_size, -1, total_len, self.embed_dim)
-        v = self.w_v(h).view(batch_size, -1, total_len, self.embed_dim)
-        r_emb = self.w_r(self.R[-total_len:]).view(1, -1, total_len, self.embed_dim)
+        q = self.w_q(x).view(batch_size, seg_len, -1, self.embed_dim)
+        k = self.w_k(h).view(batch_size, total_len, -1, self.embed_dim)
+        v = self.w_v(h).view(batch_size, total_len, -1, self.embed_dim)
+        r = self.w_r(self.R[-total_len:]).view(1, total_len, -1, self.embed_dim)
+        
+        # aligning matrices to (batch_size, num_heads, seg_len, embed_dim)
+        q = q.transpose(1,2)
+        k = k.transpose(1,2)
+        v = v.transpose(1,2)
+        r = r.transpose(1,2)
         
         # the "XL specific" way of computing the pre-softmax attention score
         ac = torch.einsum("bhid,bhjd->bhij", q + self.u1, k)
-        bd = torch.einsum("bhid,bhjd->bhij", q + self.u2, r_emb)
+        bd = torch.einsum("bhid,bhjd->bhij", q + self.u2, r)
         bd = self.circulant_shift(bd, -seg_len+1)
         
         # computing the attention scores
@@ -51,7 +57,7 @@ class MultiHeadAttention(nn.Module):
             att_score = torch.einsum("bhid,bi->bhid", att_score, att_mask)
         
         # compute output
-        att = (att_score @ v).view(batch_size, seg_len, -1)
+        att = (att_score @ v).transpose(1,2).reshape(batch_size, seg_len, -1)
         out = self.dropout(self.mlp(att))
         return self.layer_norm(out + x)
               
