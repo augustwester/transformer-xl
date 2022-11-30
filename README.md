@@ -1,3 +1,3 @@
 # Transformer-XS
 
-![Relative positional encodings](relative-pos-encoding.png)
+![Relative positional encodings](rel-pos-enc.png)
