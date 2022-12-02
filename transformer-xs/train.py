@@ -61,4 +61,4 @@ if __name__ == "__main__":
     num_digits = args.num_digits
     num_samples = args.num_samples
     
-    train(seq_len, num_digits, num_samples)
+    train(num_epochs, batch_size, num_samples, num_digits, seq_len)
