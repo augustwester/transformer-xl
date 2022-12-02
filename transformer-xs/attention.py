@@ -10,8 +10,8 @@ class MultiHeadAttention(nn.Module):
         self.embed_dim = embed_dim
         self.device = device
         
-        self.u1 = nn.Parameter(torch.randn(1, num_heads, 1, embed_dim))
-        self.u2 = nn.Parameter(torch.randn(1, num_heads, 1, embed_dim))
+        self.u = nn.Parameter(torch.randn(1, num_heads, 1, embed_dim))
+        self.t = nn.Parameter(torch.randn(1, num_heads, 1, embed_dim))
         
         self.w_q = nn.Linear(model_dim, num_heads*embed_dim, bias=False)
         self.w_k = nn.Linear(model_dim, num_heads*embed_dim, bias=False)
@@ -43,8 +43,8 @@ class MultiHeadAttention(nn.Module):
         r = r.transpose(1,2)
         
         # the "XL specific" way of computing the pre-softmax attention score
-        ac = torch.einsum("bhid,bhjd->bhij", q + self.u1, k)
-        bd = torch.einsum("bhid,bhjd->bhij", q + self.u2, r)
+        ac = torch.einsum("bhid,bhjd->bhij", q + self.u, k)
+        bd = torch.einsum("bhid,bhjd->bhij", q + self.t, r)
         bd = self.circulant_shift(bd, -seg_len+1)
         
         # computing the attention scores
