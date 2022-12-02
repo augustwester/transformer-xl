@@ -49,7 +49,7 @@ def train(num_epochs, batch_size, num_samples, num_digits, seq_len):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--num_epochs", type=int, default=16)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--sequence_length", type=int, default=20)
     parser.add_argument("--num_digits", type=int, default=10)
     parser.add_argument("--num_samples", type=int, default=5000)
