@@ -10,8 +10,6 @@ def eval(seq_len, num_digits, num_samples):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     saved = torch.load("model.pt", map_location=torch.device("cpu"))
     state_dict, config = saved["state_dict"], saved["config"]
-    
-    config.seg_len = 80
 
     model = TransformerXL(config, device)
     model.load_state_dict(state_dict)
@@ -19,7 +17,7 @@ def eval(seq_len, num_digits, num_samples):
 
     test_data, test_targets = gen_dataset(0, num_digits, seq_len, num_samples)
     test_data, test_targets = test_data.to(device), test_targets.to(device)
-    batch_size = min(1000, num_samples)
+    batch_size = min(100, num_samples)
     num_batches = ceil(num_samples / batch_size)
     
     print("Evaluating without memory...")
