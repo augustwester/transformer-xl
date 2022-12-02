@@ -12,9 +12,9 @@ class TransformerXL(nn.Module):
         config.seg_len = 100
         config.mem_len = 100
         config.num_heads = 4
-        config.dropout = 0.1
+        config.dropout = 0
         config.inner_dim = 256
-        config.num_layers = 4
+        config.num_layers = 2
         return config
     
     def __init__(self, config, device):
@@ -28,7 +28,6 @@ class TransformerXL(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
         self.device = device
         
-        # no need for each layer to create a copy of the positional encodings
         total_len = self.mem_len+config.seg_len
         R = self.get_sinusoid_pos_encoding(total_len, self.model_dim)
         R = torch.flip(R, dims=(0,)).to(device)
@@ -78,12 +77,11 @@ class TransformerXL(nn.Module):
         return enc
     
     def set_up_memory(self, batch_size):
-        self.mem = [None] * len(self.layers)
-        for i in range(len(self.mem)):
-            self.mem[i] = torch.zeros(batch_size, 0, self.model_dim).to(self.device)
+        self.mem = [torch.zeros(batch_size, 0, self.model_dim).to(self.device)
+                    for _ in range(len(self.layers))]
     
     def add_to_memory(self, x, i):
-        # beware that this indexing might cause problems when mem_len==0
+        if self.mem_len == 0: return
         self.mem[i] = torch.cat((self.mem[i], x.detach()), dim=1)[:, -self.mem_len:]
     
     def clear_memory(self):
