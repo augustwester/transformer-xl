@@ -1,79 +1,65 @@
 import torch
 from torch.nn import CrossEntropyLoss
 from model import TransformerXL
-from datasets.load import load_dataset
-from transformers import AutoTokenizer
-from torch.utils.data import DataLoader
 from math import ceil
 from torch.optim import Adam
 from tqdm import tqdm
-from torch.distributions import Categorical
+from data import gen_dataset
 
-num_epochs = 5
-batch_size = 128
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# load dataset
-dataset = load_dataset("wikitext", "wikitext-103-raw-v1")
-train = dataset["train"]
-train = train.filter(lambda x: x["text"] != "" and x["text"][:2] != " =")
-#train = train.filter(lambda x: "the" not in x["text"])
+num_epochs = 16
+batch_size = 128
+num_samples = 10**5
+vocab_size = 10
+seq_len = 20
+num_batches = ceil(num_samples / batch_size)
 
-# tokenize dataset
-tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-def tokenization(example):
-    return tokenizer(example["text"], padding="longest", max_length=-1)
-train = train.map(tokenization, batched=True, batch_size=batch_size)
-train.set_format(type="pt")
+# generate dataset of random sequences of unordered digits
+train_data, train_targets = gen_dataset(0, vocab_size, seq_len, num_samples)
 
-# create model, dataset loader, and optimizer
+# for sequence [4,5,3,0], we input [4,5,3,0,0,3,4] during training
+train_data = torch.cat((train_data, train_targets), dim=-1)[:, :-1]
+
+# set up model configuration
 config = TransformerXL.get_default_config()
-config.vocab_size = tokenizer.vocab_size
-model = TransformerXL(config, device)
-train_loader = DataLoader(train, batch_size=batch_size)
-opt = Adam(model.parameters(), lr=2.5e-4)
-cross_entropy = CrossEntropyLoss(label_smoothing=0.1)
+config.mem_len = 0 # we don't need memory during training for this task
+config.seg_len = 2 * seq_len - 1
+config.vocab_size = vocab_size
 
-def generate_sentence(model, num_gen_words=10):
-    output = "The adventure began when "
-    input = output
-    for _ in range(num_gen_words):
-        tokenized_input = tokenizer(input, return_tensors="pt")
-        out = model(tokenized_input["input_ids"].to(device),
-                    tokenized_input["attention_mask"].to(device))
-        next_token_dist = torch.softmax(out, dim=-1)[0, -2]
-        next_token_id = Categorical(next_token_dist).sample()
-        next_token = tokenizer.decode(next_token_id)
-        output += next_token + " "
-        input = next_token
-    model.clear_memory()
-    return output
+# create model along with optimizer and loss function
+model = TransformerXL(config, device)
+opt = Adam(model.parameters(), lr=1e-4)
+cross_entropy = CrossEntropyLoss()
 
 for _ in range(num_epochs):
-    progress = tqdm(train_loader)
-    for batch_num, batch in enumerate(progress):
-        x = batch["input_ids"].to(device)
-        att_mask = batch["attention_mask"].to(device)
-        num_segments = ceil(x.shape[-1] / config.seg_len)
-        
-        for i in range(num_segments):
-            seg = x[:, i*config.seg_len:(i+1)*config.seg_len]
-            mask = att_mask[:, i*config.seg_len:(i+1)*config.seg_len].bool()
-            
-            preds = model(seg, mask)[mask][:-1]
-            targets = seg[mask][1:]
-            preds = preds[targets != tokenizer.pad_token_id]
-            targets = targets[targets != tokenizer.pad_token_id]
-            
-            loss = cross_entropy(preds, targets)
-            loss.backward()
-            
-            opt.step()
-            opt.zero_grad()
-            
+    progress = tqdm(range(num_batches))
+    for i in progress:
+        x = train_data[i*batch_size:(i+1)*batch_size].to(device)
+        y = train_targets[i*batch_size:(i+1)*batch_size].to(device)
+        preds = model(x)[:, seq_len-1:].reshape(-1, vocab_size)
+        loss = cross_entropy(preds, y.flatten())
+        loss.backward()
+        opt.step()
+        opt.zero_grad()
         progress.set_description(f"{loss.item()}")
         model.clear_memory()
-        
-        if batch_num % 20 == 0:
-            print(generate_sentence(model))
-            
+
+# save model and model config to disk
+torch.save({"state_dict": model.state_dict(),
+            "config": config}, "model.pt")
+print("Model trained and saved to file: model.pt. Proceeding to evaluate...")
+
+# evaluate model using single-token autoregression
+num_test_samples = 1000
+test_data, test_targets = gen_dataset(0, vocab_size, seq_len, num_test_samples)
+preds = torch.empty(num_test_samples, 0)
+
+# on first run, input unordered sequence, then only model's predictions
+for i in tqdm(range(seq_len)):
+    out = model(test_data) if i == 0 else model(next_token)
+    next_token = out.argmax(-1)[:, -1:]
+    preds = torch.cat((preds, next_token), dim=-1)
+
+num_correct = (test_data.sort()[0] == preds).prod(1).sum()
+print(f"{num_correct} / {num_samples}")
