@@ -44,7 +44,7 @@ def train(num_epochs, batch_size, num_samples, num_digits, seq_len):
     # save model and model config to disk
     torch.save({"state_dict": model.state_dict(),
                 "config": config}, "model.pt")
-    print("Model trained and saved to file: model.pt. Proceeding to evaluate...")
+    print("Model trained and saved to file: model.pt.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
