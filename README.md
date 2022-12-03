@@ -4,15 +4,15 @@
 
 This repo is associated with the blog post ["Transformer-XL: A Memory-Augmented Transformer"](https://sigmoidprime.com/post/transformer-xl) over at [sigmoid prime](https://sigmoidprime.com/). It contains a lightweight implementation of the Transformer-XL architecture, proposed by Dai et al. in the paper ["Transformer-XL: Attentive Language Models Beyond a Fixed-Length Context"](https://arxiv.org/abs/1901.02860) (2019).
 
-Inspired by Andrej Karpthy's [minGPT](https://github.com/karpathy/minGPT), the implementation focuses on simplicity by distilling the architecture to its bare minimum, so you won't find any code for training the model on large text corpuses or anything like that. Like minGPT, the implementation only comes with a script to train the model to sort sequences of unordered numbers.
+Inspired by Andrej Karpthy's [minGPT](https://github.com/karpathy/minGPT), the implementation focuses on simplicity by distilling the architecture to its bare minimum, so you won't find any code for training the model on large text corpuses or anything like that. Like minGPT, the implementation only comes with a script to train the model to sort sequences of unordered numbers. I think this makes the implementation friendlier and easier to understand.
 
-To do that, simply run:
+To train the model, simply run:
 
 ```
 python3 transformer-xl/train.py
 ```
 
-followed by the command below to evaluate the trained model.
+followed by the command below to evaluate it:
 
 ```
 python3 transformer-xl/eval.py
