@@ -23,6 +23,6 @@ class DecoderLayer(nn.Module):
         self.attn = MultiHeadAttention(model_dim, embed_dim, mem_len, num_heads, dropout, R, device)
         self.pos_ff = PositionwiseFeedForward(model_dim, inner_dim, dropout)
     
-    def forward(self, x, mem, att_mask):
-        att_out = self.attn(x, mem, att_mask)
+    def forward(self, x, mem):
+        att_out = self.attn(x, mem)
         return self.pos_ff(att_out)
