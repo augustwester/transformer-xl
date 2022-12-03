@@ -8,7 +8,7 @@ from time import time
 
 def eval(seq_len, num_digits, num_samples, batch_size):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    saved = torch.load("model.pt", map_location=torch.device("cpu"))
+    saved = torch.load("model.pt", map_location=device)
     state_dict, config = saved["state_dict"], saved["config"]
 
     model = TransformerXL(config, device)
@@ -31,6 +31,7 @@ def eval(seq_len, num_digits, num_samples, batch_size):
             out = model(batch_preds)
             next_token = out.argmax(-1)[:, -1:]
             batch_preds = torch.cat((batch_preds, next_token), dim=-1)
+        
         preds = torch.cat((preds, batch_preds[:, -seq_len:]))
         
     end = time()
