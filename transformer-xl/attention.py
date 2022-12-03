@@ -22,7 +22,7 @@ class MultiHeadAttention(nn.Module):
         self.mlp = nn.Linear(num_heads*embed_dim, model_dim, bias=False)
         self.layer_norm = nn.LayerNorm(model_dim)
     
-    def forward(self, x, mem, att_mask):
+    def forward(self, x, mem):
         # concat output from previous layer with "memory" from earlier segments
         h = torch.cat((mem, x), dim=1)
         
@@ -52,9 +52,6 @@ class MultiHeadAttention(nn.Module):
         att_score = att_score.tril(mem_len) / self.embed_dim**0.5
         att_score[att_score == 0] = float("-inf")
         att_score = torch.softmax(att_score, dim=-1)
-        
-        if att_mask is not None:
-            att_score = torch.einsum("bhid,bi->bhid", att_score, att_mask)
         
         # compute output
         att = (att_score @ v).transpose(1,2).reshape(batch_size, seg_len, -1)

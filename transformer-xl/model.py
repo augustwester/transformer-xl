@@ -8,12 +8,12 @@ class TransformerXL(nn.Module):
     def default_config():
         config = Config()
         config.model_dim = 128
-        config.embed_dim = 64
-        config.seg_len = 100
+        config.embed_dim = 32
+        config.seg_len = 39
         config.mem_len = 100
         config.num_heads = 4
         config.dropout = 0
-        config.inner_dim = 256
+        config.inner_dim = 128
         config.num_layers = 2
         return config
     
@@ -47,7 +47,7 @@ class TransformerXL(nn.Module):
         self.out_layer = nn.Linear(config.model_dim, config.vocab_size)
         self.to(device)
     
-    def forward(self, x, att_mask=None):
+    def forward(self, x):
         x = self.dropout(self.embed(x))
         
         # create memory tensors if they haven't been already
@@ -58,7 +58,7 @@ class TransformerXL(nn.Module):
         # compute model output, saving layer inputs to memory along the way
         for i, dec in enumerate(self.layers):
             x_ = x.clone()
-            x = dec(x, self.mem[i], att_mask)
+            x = dec(x, self.mem[i])
             self.add_to_memory(x_, i)
             
         return self.out_layer(x)
@@ -87,7 +87,3 @@ class TransformerXL(nn.Module):
     
     def clear_memory(self):
         self.mem = None
-        
-    @property
-    def seg_len(self, seg_len):
-        
