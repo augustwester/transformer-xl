@@ -7,6 +7,7 @@ from math import ceil
 from time import time
 
 def eval(seq_len, num_digits, num_samples, batch_size):
+    # load model from disk
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     saved = torch.load("model.pt", map_location=device)
     state_dict, config = saved["state_dict"], saved["config"]
@@ -15,19 +16,21 @@ def eval(seq_len, num_digits, num_samples, batch_size):
     model.load_state_dict(state_dict)
     model.eval()
 
+    # generate test dataset
     test_data, test_targets = gen_dataset(0, num_digits, seq_len, num_samples)
     test_data, test_targets = test_data.to(device), test_targets.to(device)
     num_batches = ceil(num_samples / batch_size)
     
     print("Evaluating without memory...")
 
+    # first test the model without using the hidden state memory
     model.mem_len = 0
     preds = torch.empty(0, seq_len).to(device)
     start = time()
     
     for i in tqdm(range(num_batches)):
         batch_preds = test_data[i*batch_size:(i+1)*batch_size]
-        for k in range(seq_len):
+        for _ in range(seq_len):
             out = model(batch_preds)
             next_token = out.argmax(-1)[:, -1:]
             batch_preds = torch.cat((batch_preds, next_token), dim=-1)
@@ -40,6 +43,7 @@ def eval(seq_len, num_digits, num_samples, batch_size):
 
     print("Evaluating with memory...")
     
+    # then we test the model using the hidden state memory
     model.mem_len = seq_len * 2 - 1
     preds = torch.empty(num_samples, seq_len).to(device)
     start = time()
