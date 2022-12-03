@@ -29,6 +29,7 @@ class TransformerXL(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
         self.device = device
         
+        # segment length + memory length determines the size of R
         total_len = self.mem_len+config.seg_len
         R = self.get_sinusoid_pos_encoding(total_len, self.model_dim)
         R = torch.flip(R, dims=(0,)).to(device)
