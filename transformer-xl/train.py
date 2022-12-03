@@ -17,7 +17,7 @@ def train(num_epochs, batch_size, num_samples, num_digits, seq_len):
     train_data = torch.cat((train_data, train_targets), dim=-1)[:, :-1]
 
     # set up model configuration
-    config = TransformerXL.get_default_config()
+    config = TransformerXL.default_config()
     config.mem_len = 0 # we don't need memory during training for this task
     config.seg_len = 2 * seq_len - 1
     config.vocab_size = num_digits
