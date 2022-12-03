@@ -20,8 +20,8 @@ class TransformerXL(nn.Module):
     def __init__(self, config, device):
         super().__init__()
         self.mem = None
-        self._mem_len = config.mem_len
-        self._seg_len = config.seg_len
+        self.mem_len = config.mem_len
+        self.seg_len = config.seg_len
         self.model_dim = config.model_dim
         self.vocab_size = config.vocab_size
         self.embed = nn.Embedding(config.vocab_size, config.model_dim)
