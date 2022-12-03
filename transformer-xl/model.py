@@ -5,7 +5,7 @@ from config import Config
 
 class TransformerXL(nn.Module):
     @staticmethod
-    def get_default_config():
+    def default_config():
         config = Config()
         config.model_dim = 128
         config.embed_dim = 64
@@ -20,7 +20,8 @@ class TransformerXL(nn.Module):
     def __init__(self, config, device):
         super().__init__()
         self.mem = None
-        self.mem_len = config.mem_len
+        self._mem_len = config.mem_len
+        self._seg_len = config.seg_len
         self.model_dim = config.model_dim
         self.vocab_size = config.vocab_size
         self.embed = nn.Embedding(config.vocab_size, config.model_dim)
@@ -86,3 +87,7 @@ class TransformerXL(nn.Module):
     
     def clear_memory(self):
         self.mem = None
+        
+    @property
+    def seg_len(self, seg_len):
+        
