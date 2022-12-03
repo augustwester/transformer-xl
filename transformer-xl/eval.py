@@ -31,7 +31,7 @@ def eval(seq_len, num_digits, num_samples, batch_size):
             out = model(batch_preds)
             next_token = out.argmax(-1)[:, -1:]
             batch_preds = torch.cat((batch_preds, next_token), dim=-1)
-        
+        model.clear_memory()
         preds = torch.cat((preds, batch_preds[:, -seq_len:]))
         
     end = time()
